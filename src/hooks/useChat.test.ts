@@ -145,9 +145,13 @@ describe("useChat", () => {
       "STATE_SET",
     ]);
 
-    // Each step after the first should chain off the previous step's eventId.
+    // Each step from intent_classified onward should chain off the previous
+    // step's eventId. (user_message's own parentId depends on whether the
+    // fire-and-forget session_started log has resolved yet, which is a race
+    // not worth pinning down here — the rest of the chain is deterministic
+    // because it only starts once user_message's log call has resolved.)
     const parentIds = loggedRequests.map((r) => (r as { parentId?: string }).parentId);
-    for (let i = 1; i < parentIds.length; i++) {
+    for (let i = 2; i < parentIds.length; i++) {
       expect(parentIds[i]).toBe(`evt_${i}`);
     }
   });

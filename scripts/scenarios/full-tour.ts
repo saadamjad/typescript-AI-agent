@@ -80,8 +80,19 @@ async function main() {
   });
 
   await section("3. Search — semantic search", async () => {
-    const searchResults = await db.search({ query: "money back for a damaged item", agent, limit: 5 });
-    return searchResults.map((e) => `${e.event} (score=${e.score?.toFixed(3) ?? "n/a"})`).join("\n") || "(no results)";
+    try {
+      const searchResults = await db.search({ query: "money back for a damaged item", agent, limit: 5 });
+      return (
+        searchResults.map((e) => `${e.event} (score=${e.score?.toFixed(3) ?? "n/a"})`).join("\n") ||
+        "(no results)"
+      );
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (message.includes("Embedding generation failed")) {
+        return "SKIPPED: no embeddings provider configured for this tenant (Dashboard -> Settings -> Embeddings).";
+      }
+      throw error;
+    }
   });
 
   await section("4. State — time travel", async () => {
