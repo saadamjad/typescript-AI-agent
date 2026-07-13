@@ -2,6 +2,7 @@
 
 import { useCallback, useRef, useState } from "react";
 import { sendMessage as sendMessageToApi } from "@/services/chat.service";
+import { logEvent } from "@/services/logging.service";
 import { validateMessage } from "@/utils/validation";
 import type { ChatMessage } from "@/types/chat";
 
@@ -19,6 +20,7 @@ export function useChat() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const isSendingRef = useRef(false);
+  const sessionIdRef = useRef(crypto.randomUUID());
 
   const sendMessage = useCallback(async (text: string) => {
     if (isSendingRef.current) {
@@ -37,9 +39,23 @@ export function useChat() {
     setIsLoading(true);
     setMessages((prev) => [...prev, createMessage("user", trimmed)]);
 
+    const userEventIdPromise = logEvent(
+      "user_message",
+      { content: trimmed },
+      sessionIdRef.current,
+    );
+
     try {
-      const response = await sendMessageToApi(trimmed);
+      const { response, source } = await sendMessageToApi(trimmed);
       setMessages((prev) => [...prev, createMessage("assistant", response)]);
+      void userEventIdPromise.then((parentId) =>
+        logEvent(
+          "assistant_response",
+          { content: response, source },
+          sessionIdRef.current,
+          parentId,
+        ),
+      );
     } catch {
       setError("Something went wrong while reaching the assistant. Please try again.");
     } finally {

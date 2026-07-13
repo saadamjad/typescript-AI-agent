@@ -3,6 +3,13 @@ import { getInternalResponse } from "@/services/internal-knowledge.service";
 import { API_ENDPOINTS, FALLBACK_UNSUPPORTED_MESSAGE } from "@/constants/api";
 import { chatResponseSchema, type ChatRequest, type ChatResponse } from "@/types/chat";
 
+export type MessageSource = "external" | "internal_fallback";
+
+export interface SendMessageResult {
+  response: string;
+  source: MessageSource;
+}
+
 async function fetchExternalResponse(message: string): Promise<string> {
   const raw = await postJson<ChatResponse>(API_ENDPOINTS.CHAT, {
     message,
@@ -25,14 +32,18 @@ async function fetchExternalResponse(message: string): Promise<string> {
  * error response), falls back to the internal knowledge handler so the
  * conversation degrades gracefully instead of failing.
  */
-export async function sendMessage(message: string): Promise<string> {
+export async function sendMessage(message: string): Promise<SendMessageResult> {
   try {
-    return await fetchExternalResponse(message);
+    const response = await fetchExternalResponse(message);
+    return { response, source: "external" };
   } catch (error) {
     console.warn(
       "External AI service unavailable, using internal fallback.",
       error instanceof ApiError ? { kind: error.kind, message: error.message } : error,
     );
-    return getInternalResponse(message) ?? FALLBACK_UNSUPPORTED_MESSAGE;
+    return {
+      response: getInternalResponse(message) ?? FALLBACK_UNSUPPORTED_MESSAGE,
+      source: "internal_fallback",
+    };
   }
 }

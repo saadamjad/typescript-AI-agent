@@ -1,15 +1,29 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { useChat } from "@/hooks/useChat";
 import * as chatService from "@/services/chat.service";
 
 describe("useChat", () => {
+  beforeEach(() => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({ eventId: "evt_test" }),
+      } as Response),
+    );
+  });
+
   afterEach(() => {
+    vi.unstubAllGlobals();
     vi.restoreAllMocks();
   });
 
   it("appends the user message and the AI response on success", async () => {
-    vi.spyOn(chatService, "sendMessage").mockResolvedValue("Hi! How can I help?");
+    vi.spyOn(chatService, "sendMessage").mockResolvedValue({
+      response: "Hi! How can I help?",
+      source: "external",
+    });
 
     const { result } = renderHook(() => useChat());
 
@@ -54,7 +68,7 @@ describe("useChat", () => {
   });
 
   it("ignores a duplicate submission while a request is in flight", async () => {
-    let resolveSend: (value: string) => void = () => {};
+    let resolveSend: (value: chatService.SendMessageResult) => void = () => {};
     vi.spyOn(chatService, "sendMessage").mockImplementation(
       () =>
         new Promise((resolve) => {
@@ -77,7 +91,7 @@ describe("useChat", () => {
     expect(chatService.sendMessage).toHaveBeenCalledTimes(1);
 
     await act(async () => {
-      resolveSend("Reply");
+      resolveSend({ response: "Reply", source: "external" });
     });
   });
 });

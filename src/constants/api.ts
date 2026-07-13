@@ -1,5 +1,6 @@
 export const API_ENDPOINTS = {
   CHAT: "/chat",
+  LOG: "/api/log",
 } as const;
 
 export const REQUEST_TIMEOUT_MS = 30_000;
