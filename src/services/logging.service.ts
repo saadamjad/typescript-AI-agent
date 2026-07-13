@@ -10,6 +10,7 @@ export async function logEvent(
   data: Record<string, unknown>,
   sessionId: string,
   parentId?: string,
+  metadata?: Record<string, unknown>,
 ): Promise<string | undefined> {
   try {
     const response = await fetch(API_ENDPOINTS.LOG, {
@@ -20,6 +21,7 @@ export async function logEvent(
         data,
         sessionId,
         parentId,
+        metadata,
       } satisfies LogEventRequest),
     });
 

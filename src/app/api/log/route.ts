@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getZizkaDB } from "@/config/zizkadb.server";
+import { logAgentEvent } from "@/zizkadb/events/event-logger";
 import { logEventRequestSchema, type LogEventResponse } from "@/types/logging";
 
 /**
@@ -16,15 +16,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const { db, agentName } = getZizkaDB();
-    const result = await db.log({
-      agent: agentName,
-      event: parsed.data.event,
-      data: parsed.data.data,
-      sessionId: parsed.data.sessionId,
-      parentId: parsed.data.parentId,
-    });
-
+    const result = await logAgentEvent(parsed.data);
     return NextResponse.json({ eventId: result.eventId } satisfies LogEventResponse);
   } catch (error) {
     console.warn("ZizkaDB logging failed", error);

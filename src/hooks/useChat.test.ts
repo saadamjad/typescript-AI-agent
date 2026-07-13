@@ -23,6 +23,7 @@ describe("useChat", () => {
     vi.spyOn(chatService, "sendMessage").mockResolvedValue({
       response: "Hi! How can I help?",
       source: "external",
+      steps: [],
     });
 
     const { result } = renderHook(() => useChat());
@@ -91,7 +92,63 @@ describe("useChat", () => {
     expect(chatService.sendMessage).toHaveBeenCalledTimes(1);
 
     await act(async () => {
-      resolveSend({ response: "Reply", source: "external" });
+      resolveSend({ response: "Reply", source: "external", steps: [] });
     });
+  });
+
+  it("logs each agent step in order, chaining parentId across the causal tree", async () => {
+    let nextEventId = 0;
+    const loggedRequests: unknown[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockImplementation(async (_url: string, init: RequestInit) => {
+        loggedRequests.push(JSON.parse(init.body as string));
+        nextEventId += 1;
+        return { ok: true, json: async () => ({ eventId: `evt_${nextEventId}` }) } as Response;
+      }),
+    );
+
+    vi.spyOn(chatService, "sendMessage").mockResolvedValue({
+      response: "Your balance is $10.",
+      source: "billing_lookup",
+      steps: [
+        { event: "intent_classified", data: { intent: "billing" } },
+        { event: "tool_selected", data: { tool: "billing_lookup" } },
+        { event: "tool_call", data: { tool: "billing_lookup" } },
+        { event: "tool_result", data: { tool: "billing_lookup" } },
+        { event: "assistant_response", data: { content: "Your balance is $10." } },
+      ],
+      statePatch: { billing_status: "reviewed" },
+    });
+
+    const { result } = renderHook(() => useChat());
+
+    await act(async () => {
+      await result.current.sendMessage("What's my bill?");
+    });
+
+    // Wait for the fire-and-forget step-chain logging to flush.
+    await waitFor(() => {
+      const events = loggedRequests.map((r) => (r as { event: string }).event);
+      expect(events).toContain("STATE_SET");
+    });
+
+    const events = loggedRequests.map((r) => (r as { event: string }).event);
+    expect(events).toEqual([
+      "session_started",
+      "user_message",
+      "intent_classified",
+      "tool_selected",
+      "tool_call",
+      "tool_result",
+      "assistant_response",
+      "STATE_SET",
+    ]);
+
+    // Each step after the first should chain off the previous step's eventId.
+    const parentIds = loggedRequests.map((r) => (r as { parentId?: string }).parentId);
+    for (let i = 1; i < parentIds.length; i++) {
+      expect(parentIds[i]).toBe(`evt_${i}`);
+    }
   });
 });

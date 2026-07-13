@@ -1,49 +1,20 @@
-import { ApiError, postJson } from "@/services/api-client";
-import { getInternalResponse } from "@/services/internal-knowledge.service";
-import { API_ENDPOINTS, FALLBACK_UNSUPPORTED_MESSAGE } from "@/constants/api";
-import { chatResponseSchema, type ChatRequest, type ChatResponse } from "@/types/chat";
+import { runAgentTurn } from "@/agent/run-agent-turn";
+import type { AgentStep, MessageSource } from "@/agent/types";
 
-export type MessageSource = "external" | "internal_fallback";
+export type { MessageSource } from "@/agent/types";
 
 export interface SendMessageResult {
   response: string;
   source: MessageSource;
-}
-
-async function fetchExternalResponse(message: string): Promise<string> {
-  const raw = await postJson<ChatResponse>(API_ENDPOINTS.CHAT, {
-    message,
-  } satisfies ChatRequest);
-
-  const parsed = chatResponseSchema.safeParse(raw);
-  if (!parsed.success || !parsed.data.success) {
-    throw new ApiError(
-      "invalid-response",
-      "Received an unexpected response from the server.",
-    );
-  }
-
-  return parsed.data.data.response;
+  steps: AgentStep[];
+  statePatch?: Record<string, unknown>;
 }
 
 /**
- * Sends a message to the external AI service. If the service is unavailable
- * for any reason (missing/invalid API key, network failure, timeout, or an
- * error response), falls back to the internal knowledge handler so the
- * conversation degrades gracefully instead of failing.
+ * Runs one agent turn for the given message. Intent classification, tool
+ * selection/execution, and the external-chat/internal-fallback behavior all
+ * live in @/agent — this is just the entry point the chat UI calls.
  */
 export async function sendMessage(message: string): Promise<SendMessageResult> {
-  try {
-    const response = await fetchExternalResponse(message);
-    return { response, source: "external" };
-  } catch (error) {
-    console.warn(
-      "External AI service unavailable, using internal fallback.",
-      error instanceof ApiError ? { kind: error.kind, message: error.message } : error,
-    );
-    return {
-      response: getInternalResponse(message) ?? FALLBACK_UNSUPPORTED_MESSAGE,
-      source: "internal_fallback",
-    };
-  }
+  return runAgentTurn(message);
 }
