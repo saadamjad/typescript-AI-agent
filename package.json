@@ -15,6 +15,7 @@
     "test:zizkadb": "tsx scripts/test-zizkadb-query.ts",
     "scenario:seed-normal": "tsx scripts/scenarios/seed-normal-sessions.ts",
     "scenario:seed-shift": "tsx scripts/scenarios/seed-behavior-shift.ts",
+    "scenario:seed-bulk": "tsx scripts/scenarios/seed-bulk-events.ts",
     "scenario:full-tour": "tsx scripts/scenarios/full-tour.ts"
   },
   "dependencies": {
