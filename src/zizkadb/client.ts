@@ -44,9 +44,10 @@ let cached: ZizkaDBContext | null = null;
 
 function initZizkaDB(): ZizkaDBContext {
   const env = loadZizkaDBEnv();
-  const db = env.ZIZKADB_HOST
-    ? new ZizkaDB({ host: env.ZIZKADB_HOST })
-    : new ZizkaDB({ apiKey: env.ZIZKADB_API_KEY });
+  const db = new ZizkaDB({
+    ...(env.ZIZKADB_HOST ? { host: env.ZIZKADB_HOST } : {}),
+    ...(env.ZIZKADB_API_KEY ? { apiKey: env.ZIZKADB_API_KEY } : {}),
+  });
 
   return {
     db,
