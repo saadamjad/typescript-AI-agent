@@ -118,14 +118,24 @@ cp .env.local.example .env.local
 | Variable | Required | Purpose |
 |---|---|---|
 | `NEXT_PUBLIC_API_URL` | yes | External chat backend base URL (public — no secrets) |
-| `ZIZKADB_API_KEY` | yes, unless `ZIZKADB_HOST` is set | Cloud API key (server-only) |
-| `ZIZKADB_HOST` | alternative to `ZIZKADB_API_KEY` | Self-hosted ZizkaDB URL, e.g. `http://localhost:8000` |
-| `ZIZKADB_AGENT_NAME` | yes | Must match an agent already created in the ZizkaDB dashboard |
+| `ZIZKADB_API_KEY` | yes, unless self-hosted with no auth | API key — cloud key (no `ZIZKADB_HOST`) or self-hosted key (with `ZIZKADB_HOST`, see below) |
+| `ZIZKADB_HOST` | required for self-hosted | Self-hosted ZizkaDB URL, e.g. `http://localhost:8000` |
+| `ZIZKADB_AGENT_NAME` | yes | Must match an agent already created in the ZizkaDB dashboard (or the agent your key is scoped to) |
 | `ZIZKADB_INSPECTOR_ENABLED` | no | `true`/`false` to force the `/api/zizkadb/*` routes + Inspector panel on/off (default: enabled outside production) |
 
 All are validated at startup/request time (`src/config/env.ts`,
 `src/zizkadb/client.ts`) — the app fails fast with a clear error rather than
 silently misbehaving.
+
+> **Self-hosted + a real (non-dev) API key:** set **both** `ZIZKADB_HOST` and
+> `ZIZKADB_API_KEY`. `client.ts` passes both to the SDK — `host` sets the base
+> URL, `apiKey` sets the `Authorization` header. Leaving `ZIZKADB_HOST` unset
+> sends the key to the cloud host (`db.zizka.ai`) instead, where a self-hosted
+> key doesn't exist and every call 401s. Verify a key/host pair and see which
+> agent name it's scoped to with:
+> ```bash
+> curl -s http://localhost:8000/v1/agents -H "Authorization: Bearer <key>"
+> ```
 
 ## Running locally
 
