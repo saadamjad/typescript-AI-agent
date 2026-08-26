@@ -1,5 +1,6 @@
 import { runAgentTurn } from "@/agent/run-agent-turn";
 import type { AgentStep, MessageSource } from "@/agent/types";
+import type { TokenUsage } from "@/lib/tokens";
 
 export type { MessageSource } from "@/agent/types";
 
@@ -8,6 +9,7 @@ export interface SendMessageResult {
   source: MessageSource;
   steps: AgentStep[];
   statePatch?: Record<string, unknown>;
+  usage?: TokenUsage;
 }
 
 /**

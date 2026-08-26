@@ -1,9 +1,16 @@
 import { ApiError, postJson } from "@/services/api-client";
 import { API_ENDPOINTS } from "@/constants/api";
 import { chatResponseSchema, type ChatRequest, type ChatResponse } from "@/types/chat";
+import { resolveUsage } from "@/lib/tokens";
 import type { Tool } from "@/agent/types";
+import type { BackendUsage } from "@/lib/tokens";
 
-async function fetchExternalResponse(message: string): Promise<string> {
+interface ExternalChatResult {
+  response: string;
+  usage?: BackendUsage;
+}
+
+async function fetchExternalResponse(message: string): Promise<ExternalChatResult> {
   const raw = await postJson<ChatResponse>(API_ENDPOINTS.CHAT, {
     message,
   } satisfies ChatRequest);
@@ -16,14 +23,18 @@ async function fetchExternalResponse(message: string): Promise<string> {
     );
   }
 
-  return parsed.data.data.response;
+  return { response: parsed.data.data.response, usage: parsed.data.data.usage };
 }
 
-/** Delegates to the external AI backend (the real "LLM" for general conversation). */
+/**
+ * Delegates to the external AI backend (the real "LLM" for general
+ * conversation) and reports token usage: real counts when the backend sends
+ * them, otherwise a character-based estimate so token tracking still works.
+ */
 export const externalChatTool: Tool = {
   name: "external_chat",
   async run(message) {
-    const output = await fetchExternalResponse(message);
-    return { output };
+    const { response, usage } = await fetchExternalResponse(message);
+    return { output: response, usage: resolveUsage(usage, message, response) };
   },
 };

@@ -1,6 +1,7 @@
 import { classifyIntent } from "@/agent/intent-classifier";
 import { externalChatTool, intentToolRegistry, knowledgeBaseTool } from "@/agent/tools";
 import { FALLBACK_UNSUPPORTED_MESSAGE } from "@/constants/api";
+import { toZizkaDBTokenUsage } from "@/lib/tokens";
 import type { AgentStep, AgentTurnResult, Tool, ToolOutcome } from "@/agent/types";
 
 function toErrorMessage(error: unknown): string {
@@ -18,7 +19,14 @@ async function attemptTool(
 
   try {
     const outcome = await tool.run(message);
-    steps.push({ event: "tool_result", data: { tool: tool.name, output: outcome.output } });
+    steps.push({
+      event: "tool_result",
+      data: {
+        tool: tool.name,
+        output: outcome.output,
+        ...(outcome.usage ? { token_usage: toZizkaDBTokenUsage(outcome.usage) } : {}),
+      },
+    });
     return outcome;
   } catch (error) {
     console.warn(`${tool.name} failed`, error);
@@ -59,9 +67,20 @@ export async function runAgentTurn(message: string): Promise<AgentTurnResult> {
   if (externalOutcome) {
     steps.push({
       event: "assistant_response",
-      data: { content: externalOutcome.output, source: "external" },
+      data: {
+        content: externalOutcome.output,
+        source: "external",
+        ...(externalOutcome.usage
+          ? { token_usage: toZizkaDBTokenUsage(externalOutcome.usage) }
+          : {}),
+      },
     });
-    return { response: externalOutcome.output, source: "external", steps };
+    return {
+      response: externalOutcome.output,
+      source: "external",
+      steps,
+      usage: externalOutcome.usage,
+    };
   }
 
   const knowledgeOutcome = await attemptTool(knowledgeBaseTool, message, intent, steps);
