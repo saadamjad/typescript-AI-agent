@@ -13,10 +13,20 @@ export interface ChatRequest {
   message: string;
 }
 
+const usageSchema = z
+  .object({
+    model: z.string().optional(),
+    prompt_tokens: z.number().optional(),
+    completion_tokens: z.number().optional(),
+    total_tokens: z.number().optional(),
+  })
+  .partial();
+
 export const chatResponseSchema = z.object({
   success: z.boolean(),
   data: z.object({
     response: z.string(),
+    usage: usageSchema.optional(),
   }),
 });
 

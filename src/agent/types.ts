@@ -1,3 +1,5 @@
+import type { TokenUsage } from "@/lib/tokens";
+
 export type Intent = "billing" | "refund" | "general";
 
 export type MessageSource = "external" | "internal_fallback" | "billing_lookup" | "refund_policy";
@@ -5,6 +7,7 @@ export type MessageSource = "external" | "internal_fallback" | "billing_lookup" 
 export interface ToolOutcome {
   output: string;
   statePatch?: Record<string, unknown>;
+  usage?: TokenUsage;
 }
 
 export interface Tool {
@@ -31,4 +34,5 @@ export interface AgentTurnResult {
   source: MessageSource;
   steps: AgentStep[];
   statePatch?: Record<string, unknown>;
+  usage?: TokenUsage;
 }
